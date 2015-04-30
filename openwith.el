@@ -78,7 +78,7 @@ string."
          (proc (start-process-shell-command
                 "openwith-process" nil
                 (concat
-                 "exec nohup " command " " 
+                 "exec nohup " command " "
                  (mapconcat 'shell-quote-argument arglist " ")
                  " >/dev/null"))))
     (when (process-live-p proc)
