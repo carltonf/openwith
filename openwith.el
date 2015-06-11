@@ -58,7 +58,7 @@ where the symbol 'file' is replaced by the file to be opened."
                        (string :tag "Program")
                        (sexp :tag "Parameters"))))
 
-(defcustom openwith-confirm-invocation nil
+(defcustom openwith-confirm-invocation t
   "Ask for confirmation before invoking external programs."
   :group 'openwith
   :type 'boolean)
@@ -91,9 +91,33 @@ string."
   each an argument to COMMAND."
   (w32-shell-execute "open" file))
 
+(defcustom openwith-execluded-commands
+  '("org-.*-images")
+  "A list of regexp matching commands that should be excluded
+from `openwith-file-handler'."
+  :group 'openwith
+  :type '(repeat (regexp :tag "Program")))
+
+(defun openwith-excluded-command? (cmd-name)
+  "Test whether CMD matches one of `openwith-excluded-commands'"
+  ;; a trick with `apply' and `append', as all empty list will appended into an
+  ;; empty list. With `dash', `-none?' is all we need.
+  (car (apply #'append
+              (mapcar (lambda (exp)
+                        (when (string-match-p exp cmd-name)
+                          ;; `append' requires all argument to be list
+                          (list t)))
+                      openwith-execluded-commands))))
+
 (defun openwith-file-handler (operation &rest args)
   "Open file with external program, if an association is configured."
-  (when (and openwith-mode (not (buffer-modified-p)) (zerop (buffer-size)))
+  (when (and openwith-mode
+             ;; the two following is a hack into the Emacs: before inserting the
+             ;; content a temp buffer is created which should be un-modified and
+             ;; zero-sized.
+             (not (buffer-modified-p))
+             (zerop (buffer-size))
+             (not (openwith-excluded-command? (symbol-name real-this-command))))
     (let ((assocs openwith-associations)
           (file (car args))
           oa)
@@ -102,7 +126,7 @@ string."
       (while assocs
         (setq oa (car assocs)
               assocs (cdr assocs))
-        (when (save-match-data (string-match (car oa) file))
+        (when (string-match-p (car oa) file)
           (let ((params (mapcar (lambda (x) (if (eq x 'file) file x))
                                 (nth 2 oa))))
             (when (or (not openwith-confirm-invocation)
@@ -134,6 +158,8 @@ string."
       (progn
         ;; register `openwith-file-handler' for all files
         (put 'openwith-file-handler 'safe-magic t)
+        ;; TODO the following marks `openwith-file-handler' only applies to
+        ;; primitive `insert-file-contents', where this behavior is documented.
         (put 'openwith-file-handler 'operations '(insert-file-contents))
         (add-to-list 'file-name-handler-alist '("" . openwith-file-handler)))
     (setq file-name-handler-alist
