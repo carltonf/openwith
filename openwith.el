@@ -109,6 +109,15 @@ from `openwith-file-handler'."
                           (list t)))
                       openwith-execluded-commands))))
 
+(defvar openwith-last-activated-time (current-time)
+  "Work around the case where `insert-file-contents' is called
+consecutively in code. Such a case is `dired-find-file' on an
+image. Exact reason is unknown.
+
+If `openwith' is activated within 2 secs twice, the second one
+should fail silently. This is reasonable as `openwith' is for
+user interaction only.")
+
 (defun openwith-file-handler (operation &rest args)
   "Open file with external program, if an association is configured."
   (when (and openwith-mode
@@ -117,6 +126,9 @@ from `openwith-file-handler'."
              ;; zero-sized.
              (not (buffer-modified-p))
              (zerop (buffer-size))
+             (when (time-less-p (seconds-to-time 2)
+                                (time-subtract (current-time) openwith-last-activated-time))
+               (setq openwith-last-activated-time (current-time)))
              (not (openwith-excluded-command? (symbol-name real-this-command))))
     (let ((assocs openwith-associations)
           (file (car args))
@@ -138,9 +150,10 @@ from `openwith-file-handler'."
               (kill-buffer nil)
               (when (featurep 'recentf)
                 (recentf-add-file file))
+              (message "Opened %s in external program"
+                       (file-name-nondirectory file))
               ;; inhibit further actions
-              (error "Opened %s in external program"
-                     (file-name-nondirectory file))))))))
+              (keyboard-quit)))))))
   ;; when no association was found, relay the operation to other handlers
   (let ((inhibit-file-name-handlers
          (cons 'openwith-file-handler
