@@ -91,7 +91,7 @@ string."
   each an argument to COMMAND."
   (w32-shell-execute "open" file))
 
-(defcustom openwith-execluded-commands
+(defcustom openwith-excluded-commands
   '("org-.*-images")
   "A list of regexp matching commands that should be excluded
 from `openwith-file-handler'."
@@ -107,7 +107,7 @@ from `openwith-file-handler'."
                         (when (string-match-p exp cmd-name)
                           ;; `append' requires all argument to be list
                           (list t)))
-                      openwith-execluded-commands))))
+                      openwith-excluded-commands))))
 
 (defvar openwith-last-activated-time (current-time)
   "Work around the case where `insert-file-contents' is called
@@ -129,7 +129,7 @@ user interaction only.")
              (when (time-less-p (seconds-to-time 2)
                                 (time-subtract (current-time) openwith-last-activated-time))
                (setq openwith-last-activated-time (current-time)))
-             (not (openwith-excluded-command? (symbol-name real-this-command))))
+             (not (openwith-excluded-command? (format "%S" real-this-command))))
     (let ((assocs openwith-associations)
           (file (car args))
           oa)
